@@ -56,7 +56,9 @@
       },
       "eas": {
         "projectId": "40414f38-7329-4288-9509-f6cbb758d091"
-      }
+      },
+      "supabaseUrl": "https://jthkrexyketbecgmxstk.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0aGtyZXh5a2V0YmVjZ214c3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4MzEwMzMsImV4cCI6MjA4MTQwNzAzM30.vdv_R125JXPi_8aj-SlD7M5U2aiozw8DQJ2BjNAXnPA"
     },
     "owner": "chipamogli"
   }
