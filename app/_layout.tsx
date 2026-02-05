@@ -1,16 +1,35 @@
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { auth } from "@/src/config/firebaseConfig";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { authService } from "@/src/config/authService";
 
 export default function Layout() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    // Verificar sesión al cargar
+    const checkSession = async () => {
+      try {
+        const session = await authService.getSession();
+        if (!session) {
+          router.replace("/auth/login");
+        } else {
+          setUser(session.user);
+        }
+      } catch (error) {
+        router.replace("/auth/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // Escuchar cambios de autenticación
+    const unsubscribe = authService.onAuthStateChanged((user) => {
       if (!user) {
-        router.replace("/auth/login"); // 🔹 Redirige al login si no hay sesión
+        router.replace("/auth/login");
       } else {
         setUser(user);
       }
@@ -18,6 +37,10 @@ export default function Layout() {
 
     return () => unsubscribe();
   }, []);
+
+  if (loading) {
+    return null; // O puedes mostrar una pantalla de carga
+  }
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }

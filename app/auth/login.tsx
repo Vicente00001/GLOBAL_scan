@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Image } from "react-native";
-import { auth } from "@/src/config/firebaseConfig";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { View, Text, TextInput, Pressable, StyleSheet, Image, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { authService } from "@/src/config/authService";
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const loadEmail = async () => {
@@ -22,12 +22,22 @@ export default function LoginScreen() {
   }, []);
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      setError("Por favor completa todos los campos");
+      return;
+    }
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      setLoading(true);
+      setError("");
+      
+      await authService.login(email, password);
       await AsyncStorage.setItem("lastEmail", email);
       router.replace("/");
     } catch (err) {
       setError("Correo o contraseña incorrectos");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -40,21 +50,31 @@ export default function LoginScreen() {
       <TextInput
         style={styles.input}
         placeholder="Correo electrónico"
-        placeholderTextColor="gray"
+        placeholderTextColor="#CCCCCC"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
+        editable={!loading}
       />
       <TextInput
         style={styles.input}
         placeholder="Contraseña"
-        placeholderTextColor="gray"
+        placeholderTextColor="#CCCCCC"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
+        editable={!loading}
       />
-      <Pressable style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Iniciar Sesión</Text>
+      <Pressable 
+        style={[styles.button, loading && styles.buttonDisabled]} 
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text style={styles.buttonText}>Iniciar Sesión</Text>
+        )}
       </Pressable>
     </View>
   );
@@ -65,7 +85,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#8B0000",
+    backgroundColor: "#000000",
   },
   logo: {
     width: 150,
@@ -86,25 +106,35 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   error: {
-    color: "red",
+    color: "#FF6B6B",
     marginBottom: 10,
+    fontSize: 14,
+    fontWeight: "500",
   },
   input: {
     width: "80%",
     padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#FFD700",
-    color: "white",
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    color: "#FFFFFF",
     marginBottom: 15,
   },
   button: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#FFFFFF",
     padding: 10,
     borderRadius: 5,
     marginTop: 10,
+    minWidth: 200,
+    alignItems: "center",
+    justifyContent: "center",
+    height: 44,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
-    color: "white",
+    color: "#000000",
     fontSize: 18,
     fontWeight: "bold",
   },

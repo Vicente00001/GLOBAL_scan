@@ -2,9 +2,8 @@ import { View, Text, StyleSheet, SafeAreaView, Pressable, ActivityIndicator, Ale
 import { Link, Stack, useRouter } from "expo-router";
 import { useCameraPermissions } from "expo-camera";
 import { useState, useEffect } from "react";
-import { onSnapshot, collection, doc, getDoc, query, where, getDocs } from "firebase/firestore";
-import { signOut } from "firebase/auth";
-import { db, auth } from "@/src/config/firebaseConfig";
+import { authService } from "@/src/config/authService";
+import { databaseService } from "@/src/config/databaseService";
 
 export default function Home() {
   const router = useRouter();
@@ -44,37 +43,36 @@ export default function Home() {
       }
     }, 30000);
 
-    const unsubscribe = onSnapshot(
-      collection(db, "estudiantes"),
-      () => {
+    const checkConnection = async () => {
+      try {
+        // Verificar conexión a Supabase intentando obtener tickets
+        const tickets = await databaseService.getAllTickets();
         setIsConnected(true);
         setIsLoading(false);
         clearTimeout(timeout);
-      },
-      () => {
+      } catch (error) {
         setIsConnected(false);
         setIsLoading(false);
         clearTimeout(timeout);
       }
-    );
+    };
+
+    checkConnection();
 
     return () => {
-      unsubscribe();
       clearTimeout(timeout);
     };
   }, []);
 
   useEffect(() => {
     const fetchUserData = async () => {
-      const user = auth.currentUser;
-      if (user) {
-        const usersRef = collection(db, "usuarios");
-        const q = query(usersRef, where("correo", "==", user.email));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          const userDoc = querySnapshot.docs[0];
-          setUserName(userDoc.data().nombre);
+      try {
+        const user = await authService.getCurrentUser();
+        if (user && user.email) {
+          setUserName(user.email.split('@')[0]);
         }
+      } catch (error) {
+        console.error("Error al obtener datos del usuario:", error);
       }
     };
 
@@ -83,7 +81,7 @@ export default function Home() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await authService.logout();
       router.replace("/auth/login");
     } catch (err) {
       console.error("Error al cerrar sesión:", err);
@@ -104,22 +102,21 @@ export default function Home() {
     <View style={styles.container}>
       <View style={styles.background} />
       <SafeAreaView style={styles.safeArea}>
-        <Stack.Screen options={{ title: "Overview", headerShown: false }} />
+        <Stack.Screen options={{ title: "Escáner de Tickets", headerShown: false }} />
         <View style={styles.connectionContainer}>
           {isLoading ? (
             <ActivityIndicator size="small" color="#FFD700" />
           ) : (
             <View style={[styles.light, { backgroundColor: isConnected ? "#4CAF50" : "#F44336" }]} />
           )}
-          <Text style={styles.connectionText}>Estado de conexión con el servidor</Text>
-          
+          <Text style={styles.connectionText}>Estado de conexión con Supabase</Text>
         </View>
         <Pressable style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Cerrar Sesión</Text>
-          </Pressable>
+          <Text style={styles.logoutText}>Cerrar Sesión</Text>
+        </Pressable>
         <Image source={require('@/assets/images/LOGOMANANTIALES.png')} style={styles.logo} />
-        <Text style={styles.title}>Escáner de Atrasos            Manantiales del elqui</Text>
-        
+        <Text style={styles.title}>🎫 Escáner de Tickets de Evento</Text>
+
         {userName ? <Text style={styles.welcomeText}>Bienvenido {userName}</Text> : null}
         <Text style={styles.dateText}>{formatDate(currentTime)}</Text>
         <Text style={styles.clock}>{currentTime.toLocaleTimeString()}</Text>
@@ -139,8 +136,6 @@ export default function Home() {
               <Text style={styles.scanButtonText}>ESCANEAR CÓDIGO QR</Text>
             </Pressable>
           </Link>
-
-          
         </View>
       </SafeAreaView>
     </View>

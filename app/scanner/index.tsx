@@ -10,16 +10,15 @@ import {
   Alert,
   View,
   ActivityIndicator,
-  Dimensions
+  Dimensions,
+  ScrollView,
 } from "react-native";
 import { useEffect, useRef, useState } from "react";
-import { db, auth } from "@/src/config/firebaseConfig";
-import { collection, doc, getDoc, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { databaseService } from "@/src/config/databaseService";
 import Overlay from "./Overlay";
 
 // Obtener dimensiones de la pantalla
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 export default function ScannerScreen() {
   const router = useRouter();
@@ -27,8 +26,9 @@ export default function ScannerScreen() {
   const [cameraType, setCameraType] = useState<"front" | "back">("back");
   const [lastScanned, setLastScanned] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [ticketData, setTicketData] = useState<any>(null);
+  const [ticketStatus, setTicketStatus] = useState<"pending" | "valid" | "already_validated" | "not_found">("pending");
   const appState = useRef(AppState.currentState);
   const [permission, requestPermission] = useCameraPermissions();
 
@@ -45,103 +45,97 @@ export default function ScannerScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const formatRut = (rut: string): string => {
-    if (rut.length < 2) return rut;
-    return `${rut.slice(0, -1)}-${rut.slice(-1)}`;
-  };
-
-  const registerAttendance = async (rut: string) => {
-    if (!currentUser) {
-      setErrorMessage("Debes iniciar sesión para registrar atrasos");
-      return;
-    }
-
+  const processQRCode = async (qrId: string) => {
     setIsLoading(true);
-    const formattedRut = formatRut(rut);
-    console.log("Buscando estudiante con RUT:", formattedRut);
+    setErrorMessage(null);
+    setTicketData(null);
 
     try {
-      const studentRef = doc(db, "estudiantes", formattedRut);
-      const studentSnap = await getDoc(studentRef);
+      // Buscar el ticket en la base de datos
+      const ticket = await databaseService.getTicketByQRId(qrId.trim());
 
-      if (!studentSnap.exists()) {
-        setErrorMessage("Estudiante no encontrado, vuelva al menú y escanee nuevamente");
-        console.error("Estudiante no encontrado en Firebase");
+      if (!ticket) {
+        // Ticket no encontrado
+        setTicketStatus("not_found");
+        setErrorMessage(`❌ QR ID "${qrId}" no existe en el sistema`);
         setIsLoading(false);
+        Alert.alert("No Encontrado", `El código QR "${qrId}" no existe en la base de datos.`, [
+          { text: "OK", onPress: () => qrLock.current = false },
+        ]);
         return;
       }
 
-      const studentData = studentSnap.data();
-      console.log("Estudiante encontrado:", studentData.nombre);
+      // Formatear datos del ticket para mostrar
+      const formattedData = databaseService.formatTicketData(ticket);
+      setTicketData(formattedData);
 
-      // 🔹 Verificar si ya existe una asistencia para el mismo día
-      const today = new Date().toISOString().split("T")[0]; // Formato YYYY-MM-DD
-      const asistenciasRef = collection(db, "asistencias");
-      const q = query(asistenciasRef, where("estudiante_id", "==", formattedRut), where("fecha", "==", today));
-      const existingRecords = await getDocs(q);
-
-      if (existingRecords.size >= 2) {
+      // Verificar si ya fue validado
+      if (ticket.validated) {
+        setTicketStatus("already_validated");
+        setErrorMessage("⚠️ Este ticket ya ha sido escaneado");
+        setIsLoading(false);
         Alert.alert(
-          "Límite de Atrasos",
-          `El estudiante ${studentData.nombre} ya ha alcanzado el límite de 2 atrasos hoy.`,
+          "Ticket Ya Validado",
+          `Este ticket para ${ticket.first_name} ${ticket.last_name} ya fue escaneado en ${
+            ticket.validated_at ? new Date(ticket.validated_at).toLocaleString("es-ES") : "fecha desconocida"
+          }.\n\nDatos del ticket mostrados en pantalla.`,
           [{ text: "OK", onPress: () => qrLock.current = false }]
         );
-        setIsLoading(false);
         return;
       }
 
-      // 🔹 Verificar el horario del atraso
-      const now = new Date();
-      const currentHour = now.getHours();
+      // Validar el ticket
+      await databaseService.validateTicket(qrId.trim());
 
-      if (currentHour >= 20 || currentHour < 7) {
-        Alert.alert(
-          "Atraso Inválido",
-          "Atraso inválido por estar fuera del horario escolar (20:00 - 07:00).",
-          [{ text: "OK", onPress: () => qrLock.current = false }]
-        );
-        setIsLoading(false);
-        return;
-      }
-
-      // 🔹 Registrar asistencia en Firebase
-      await addDoc(asistenciasRef, {
-        estudiante_id: formattedRut,
-        fecha: today,
-        estado: "Atrasado",
-        hora: new Date().toLocaleTimeString(),
-        inspector_id: currentUser.uid,
-        timestamp: serverTimestamp(),
-      });
-
-      setLastScanned(studentData.nombre);
-      console.log("Asistencia registrada para:", studentData.nombre);
-
-      // 🔹 Mostrar mensaje de confirmación
-      Alert.alert(
-        "Atraso Registrado",
-        `El estudiante ${studentData.nombre} (RUT: ${formattedRut}) se ha marcado como atrasado el día ${today} a las ${new Date().toLocaleTimeString()}.`,
-        [{ text: "OK", onPress: () => { qrLock.current = false; setIsLoading(false); } }]
-      );
-
-    } catch (error) {
-      console.error("Error al registrar asistencia:", error);
-      setErrorMessage("Error al registrar asistencia");
+      setTicketStatus("valid");
+      setLastScanned(ticket.first_name && ticket.last_name ? `${ticket.first_name} ${ticket.last_name}` : "Ticket Validado");
       setIsLoading(false);
+
+      Alert.alert(
+        "✓ Ticket Validado",
+        `El ticket para ${ticket.first_name} ${ticket.last_name} ha sido validado correctamente.\n\nDatos del ticket mostrados en pantalla.`,
+        [{ text: "OK", onPress: () => qrLock.current = false }]
+      );
+    } catch (error) {
+      console.error("Error al procesar QR:", error);
+      setTicketStatus("not_found");
+      setErrorMessage("Error al procesar el código QR");
+      setIsLoading(false);
+      Alert.alert("Error", "Ocurrió un error al procesar el código QR", [
+        { text: "OK", onPress: () => qrLock.current = false },
+      ]);
+    }
+  };
+
+  const getStatusColor = () => {
+    switch (ticketStatus) {
+      case "valid":
+        return "#4CAF50";
+      case "already_validated":
+        return "#FFC107";
+      case "not_found":
+        return "#F44336";
+      default:
+        return "#2196F3";
+    }
+  };
+
+  const getStatusText = () => {
+    switch (ticketStatus) {
+      case "valid":
+        return "✓ VALIDADO";
+      case "already_validated":
+        return "⚠ YA VALIDADO";
+      case "not_found":
+        return "✗ NO ENCONTRADO";
+      default:
+        return "";
     }
   };
 
   return (
     <SafeAreaView style={StyleSheet.absoluteFillObject}>
-      <Stack.Screen options={{ title: "Scanner", headerShown: false }} />
+      <Stack.Screen options={{ title: "Scanner de Tickets", headerShown: false }} />
       <StatusBar hidden />
 
       <CameraView
@@ -151,39 +145,65 @@ export default function ScannerScreen() {
           if (data && !qrLock.current && !isLoading) {
             qrLock.current = true;
             setErrorMessage(null);
-            registerAttendance(data.trim());
+            processQRCode(data.trim());
           }
         }}
       />
-      
-      {/* Overlay que cubre toda la pantalla */}
+
+      {/* Overlay visual */}
       <View style={styles.fullScreenOverlay}>
         <Overlay />
       </View>
 
-      {/* 🔹 Mostrar "Último Escaneo" centrado sobre los botones */}
-      <View style={styles.infoContainer}>
-        {lastScanned && (
-          <Text style={styles.scannedText}>Último escaneo: {lastScanned}</Text>
-        )}
-        {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
-        {isLoading && <ActivityIndicator size="large" color="#0000ff" />}
-      </View>
+      {/* Información de estatus */}
+      {ticketStatus !== "pending" && (
+        <View style={[styles.statusContainer, { backgroundColor: getStatusColor() }]}>
+          <Text style={styles.statusText}>{getStatusText()}</Text>
+          {lastScanned && <Text style={styles.lastScannedText}>{lastScanned}</Text>}
+          {errorMessage && ticketStatus === "not_found" && (
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          )}
+        </View>
+      )}
 
-      {/* 🔹 Botones centrados en la parte inferior (ahora más arriba) */}
+      {/* Mostrar datos del ticket */}
+      {ticketData && (
+        <View style={styles.ticketDataContainer}>
+          <View style={styles.ticketDataScrollContainer}>
+            <ScrollView nestedScrollEnabled={true} style={styles.ticketScroll}>
+              <View style={styles.ticketDataContent}>
+                <Text style={styles.ticketDataTitle}>📋 DATOS DEL TICKET</Text>
+                {Object.entries(ticketData).map(([key, value]) => (
+                  <View key={key} style={styles.ticketDataRow}>
+                    <Text style={styles.ticketDataLabel}>{key}:</Text>
+                    <Text style={styles.ticketDataValue}>{String(value)}</Text>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* Mostrar mensaje de error general */}
+      {errorMessage && ticketStatus === "pending" && (
+        <View style={styles.infoContainer}>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+          {isLoading && <ActivityIndicator size="large" color="#FFD700" />}
+        </View>
+      )}
+
+      {/* Botones de control */}
       <View style={styles.buttonContainer}>
-        <Pressable 
-          onPress={() => setCameraType(cameraType === "back" ? "front" : "back")} 
+        <Pressable
+          onPress={() => setCameraType(cameraType === "back" ? "front" : "back")}
           style={styles.switchButton}
         >
           <Text style={styles.switchText}>Cambiar Cámara</Text>
         </Pressable>
 
-        <Pressable 
-          onPress={() => router.back()} 
-          style={styles.backButton}
-        >
-          <Text style={styles.backText}>Volver al Menú</Text>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Text style={styles.backText}>Volver</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -193,33 +213,99 @@ export default function ScannerScreen() {
 const styles = StyleSheet.create({
   fullScreenOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+  },
+  statusContainer: {
+    position: "absolute",
+    top: height * 0.1,
+    left: width * 0.05,
+    right: width * 0.05,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: "center",
+    zIndex: 10,
+    elevation: 5,
+  },
+  statusText: {
+    color: "white",
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  lastScannedText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+    marginTop: 8,
+    textAlign: "center",
+  },
+  errorText: {
+    color: "#FFB6C1",
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  ticketDataContainer: {
+    position: "absolute",
+    bottom: height * 0.18,
+    left: width * 0.02,
+    right: width * 0.02,
+    maxHeight: height * 0.35,
+    backgroundColor: "rgba(30, 30, 30, 0.95)",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#FFD700",
+    zIndex: 10,
+    elevation: 5,
+  },
+  ticketDataScrollContainer: {
+    flex: 1,
+    padding: 10,
+  },
+  ticketScroll: {
+    flex: 1,
+  },
+  ticketDataContent: {
+    paddingBottom: 10,
+  },
+  ticketDataTitle: {
+    color: "#FFD700",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  ticketDataRow: {
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#444",
+  },
+  ticketDataLabel: {
+    color: "#FFD700",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  ticketDataValue: {
+    color: "white",
+    fontSize: 13,
+    marginTop: 4,
   },
   infoContainer: {
     position: "absolute",
-    bottom: height * 0.22, // Ajustado para estar más arriba
-    alignSelf: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    padding: height * 0.015,
+    bottom: height * 0.18,
+    left: width * 0.05,
+    right: width * 0.05,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    padding: 15,
     borderRadius: 10,
-    maxWidth: width * 0.9,
-    zIndex: 2,
-  },
-  scannedText: { 
-    color: "white", 
-    fontSize: height * 0.022,
-    textAlign: "center",
-    maxWidth: width * 0.8,
-  },
-  errorText: { 
-    color: "red", 
-    fontSize: height * 0.022,
-    textAlign: "center",
-    maxWidth: width * 0.8,
+    alignItems: "center",
+    zIndex: 9,
   },
   buttonContainer: {
     position: "absolute",
-    bottom: height * 0.08, // Ajustado para estar más arriba (antes era 0.03)
+    bottom: height * 0.02,
     flexDirection: "row",
     justifyContent: "space-evenly",
     width: "100%",
@@ -229,31 +315,31 @@ const styles = StyleSheet.create({
   switchButton: {
     backgroundColor: "#0E7AFE",
     paddingVertical: height * 0.015,
-    paddingHorizontal: width * 0.05,
+    paddingHorizontal: width * 0.08,
     borderRadius: 8,
-    minWidth: width * 0.4,
-    alignItems: 'center',
-    justifyContent: 'center',
+    minWidth: width * 0.35,
+    alignItems: "center",
+    justifyContent: "center",
   },
   backButton: {
-    backgroundColor: "red",
+    backgroundColor: "#B22222",
     paddingVertical: height * 0.015,
-    paddingHorizontal: width * 0.05,
+    paddingHorizontal: width * 0.08,
     borderRadius: 8,
-    minWidth: width * 0.4,
-    alignItems: 'center',
-    justifyContent: 'center',
+    minWidth: width * 0.35,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  switchText: { 
-    color: "white", 
-    fontSize: height * 0.02,
+  switchText: {
+    color: "white",
+    fontSize: height * 0.018,
     fontWeight: "bold",
-    textAlign: 'center',
+    textAlign: "center",
   },
-  backText: { 
-    color: "white", 
-    fontSize: height * 0.02,
+  backText: {
+    color: "white",
+    fontSize: height * 0.018,
     fontWeight: "bold",
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
