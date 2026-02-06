@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "Escáner QR Manantiales",
-    "slug": "ExpoQR2",
+    "name": "SCANNER GLOBAL MUSIC",
+    "slug": "GLOBAL SCAN",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/LOGOMANANTIALES.png",
+    "icon": "./assets/images/logogmscan.png",
     "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
@@ -21,7 +21,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/LOGOMANANTIALES.png",
+        "foregroundImage": "./assets/images/logogmscan.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [

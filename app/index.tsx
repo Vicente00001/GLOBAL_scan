@@ -114,8 +114,8 @@ export default function Home() {
         <Pressable style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Cerrar Sesión</Text>
         </Pressable>
-        <Image source={require('@/assets/images/LOGOMANANTIALES.png')} style={styles.logo} />
-        <Text style={styles.title}>🎫 Escáner de Tickets de Evento</Text>
+        <Image source={require('@/assets/images/LOGOGM2.png')} style={styles.logo} />
+        <Text style={styles.title}>TICKET SCANNER</Text>
 
         {userName ? <Text style={styles.welcomeText}>Bienvenido {userName}</Text> : null}
         <Text style={styles.dateText}>{formatDate(currentTime)}</Text>
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   background: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#8B0000",
+    backgroundColor: "#2c0303",
   },
   safeArea: {
     flex: 1,
@@ -168,14 +168,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   welcomeText: {
-    color: "#FFD700",
+    color: "#ffffff",
     fontSize: 22,
     fontWeight: "bold",
     textAlign: "center",
     marginTop: 10,
   },
   dateText: {
-    color: "#FFD700",
+    color: "#fdfdfd",
     fontSize: 20,
     fontWeight: "bold",
     textAlign: "center",
@@ -199,25 +199,25 @@ const styles = StyleSheet.create({
     borderColor: "#000",
   },
   connectionText: {
-    color: "#FFD700",
+    color: "#ebebeb",
     fontSize: 18,
   },
   scanButtonContainer: {
     borderRadius: 24,
     padding: 20,
-    backgroundColor: '#FFD700', // Esto creará el efecto de borde
+    backgroundColor: '#ff0000', // Esto creará el efecto de borde
   },
   scanButton: {
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 8,
     borderWidth: 3,
-    borderColor: "#FFD700",
-    backgroundColor: "#8B0000",
+    borderColor: "#ffffff",
+    backgroundColor: "#ff0000",
     // Para Android:
     elevation: 5,
     // Para iOS:
-    shadowColor: "#FFD700",
+    shadowColor: "#ffffff",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.8,
     shadowRadius: 3,
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   scanButtonText: {
-    color: "#B22222",
+    color: "#ffffff",
     fontSize: 22,
     textAlign: "center",
     fontWeight: "bold",
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: "#FFD700",
+    borderColor: "#ffffff",
   },
   logoutText: {
     color: "white",

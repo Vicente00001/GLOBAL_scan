@@ -1,46 +1,31 @@
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { authService } from "@/src/config/authService";
+//import { authService } from "@/src/config/authService";
+import { Text, View } from "react-native"; 
 
 export default function Layout() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  //const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar sesión al cargar
-    const checkSession = async () => {
-      try {
-        const session = await authService.getSession();
-        if (!session) {
-          router.replace("/auth/login");
-        } else {
-          setUser(session.user);
-        }
-      } catch (error) {
-        router.replace("/auth/login");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkSession();
-
-    // Escuchar cambios de autenticación
-    const unsubscribe = authService.onAuthStateChanged((user) => {
-      if (!user) {
-        router.replace("/auth/login");
-      } else {
-        setUser(user);
-      }
-    });
-
-    return () => unsubscribe();
+    // SIMULA carga sin autenticación
+    const timer = setTimeout(() => {
+      setLoading(false);
+      // router.replace("/auth/login"); // DESCOMENTA si quieres ir al login
+    }, 1000);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   if (loading) {
-    return null; // O puedes mostrar una pantalla de carga
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Cargando...</Text>
+      </View>
+    );
   }
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }
+
