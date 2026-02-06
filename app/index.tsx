@@ -109,15 +109,15 @@ export default function Home() {
           ) : (
             <View style={[styles.light, { backgroundColor: isConnected ? "#4CAF50" : "#F44336" }]} />
           )}
-          <Text style={styles.connectionText}>Estado de conexión con Supabase</Text>
+          <Text style={styles.connectionText}>Estado de conexión</Text>
         </View>
         <Pressable style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Cerrar Sesión</Text>
         </Pressable>
         <Image source={require('@/assets/images/LOGOGM2.png')} style={styles.logo} />
-        <Text style={styles.title}>TICKET SCANNER</Text>
+        
 
-        {userName ? <Text style={styles.welcomeText}>Bienvenido {userName}</Text> : null}
+        
         <Text style={styles.dateText}>{formatDate(currentTime)}</Text>
         <Text style={styles.clock}>{currentTime.toLocaleTimeString()}</Text>
 
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   background: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#2c0303",
+    backgroundColor: "#000000",
   },
   safeArea: {
     flex: 1,
@@ -157,9 +157,9 @@ const styles = StyleSheet.create({
     paddingVertical: 80,
   },
   logo: {
-    width: 150,
-    height: 150,
-    marginBottom: 20,
+    width: 250,
+    height: 250,
+    marginBottom: 5,
   },
   title: {
     color: "white",
@@ -175,14 +175,14 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   dateText: {
-    color: "#fdfdfd",
+    color: "#c0c0c0",
     fontSize: 20,
     fontWeight: "bold",
     textAlign: "center",
-    marginTop: 10,
+    marginTop: 5,
   },
   clock: {
-    color: "white",
+    color: "#b3b2b1",
     fontSize: 36,
     fontWeight: "bold",
   },
@@ -199,13 +199,13 @@ const styles = StyleSheet.create({
     borderColor: "#000",
   },
   connectionText: {
-    color: "#ebebeb",
+    color: "#7c7c7c",
     fontSize: 18,
   },
   scanButtonContainer: {
     borderRadius: 24,
     padding: 20,
-    backgroundColor: '#ff0000', // Esto creará el efecto de borde
+    backgroundColor: '#a30606', // Esto creará el efecto de borde
   },
   scanButton: {
     paddingVertical: 15,
@@ -239,12 +239,12 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   logoutButton: {
-    backgroundColor: "#B22222",
+    backgroundColor: "#5c1414",
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: "#ffffff",
+    borderColor: "#d3412e",
   },
   logoutText: {
     color: "white",
