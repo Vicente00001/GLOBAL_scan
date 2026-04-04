@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { databaseService } from "@/src/config/databaseService";
+import { useEvent } from "@/src/context/EventContext";
+import { supabase } from "@/src/config/supabase";
 import Overlay from "./Overlay";
 import { Audio } from "expo-av";
 
@@ -57,6 +59,7 @@ const cleanUUID = (uuid: string): string => {
 
 export default function ScannerScreen() {
   const router = useRouter();
+  const { eventKey } = useEvent();
   const qrLock = useRef(false);
   const [cameraType, setCameraType] = useState<"front" | "back">("back");
   const [isLoading, setIsLoading] = useState(false);
@@ -183,12 +186,35 @@ export default function ScannerScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    const checkTicketsConnection = async () => {
+      console.log("Scanner iniciado");
+      try {
+        const { count, error } = await supabase
+          .from('tickets')
+          .select('*', { count: 'exact', head: true });
+
+        if (error) {
+          console.error("Error conexión:", error);
+          return;
+        }
+
+        console.log("Conexión a Supabase OK");
+        console.log("Total tickets:", count);
+      } catch (error) {
+        console.error("Error conexión:", error);
+      }
+    };
+
+    checkTicketsConnection();
+  }, []);
+
   const showModal = (title: string, ticketData: any, isAlreadyValidated: boolean = false, validationTime?: string) => {
     const formattedValidationTime = validationTime ? new Date(validationTime).toLocaleString("es-ES") : undefined;
     
     setModalData({
       title,
-      ticketData: databaseService.formatTicketData(ticketData),
+      ticketData,
       isAlreadyValidated,
       validationTime: formattedValidationTime
     });
@@ -220,32 +246,107 @@ export default function ScannerScreen() {
 
     try {
       const cleanedUUID = cleanUUID(qrId);
+      console.log("QR:", qrId);
       
       if (!isValidUUID(cleanedUUID)) {
         await playSound('error');
         showErrorModal(
-          "Formato Inválido", 
-          "El código QR no tiene un formato válido."
+          "Error de lectura QR", 
+          "No se pudo leer el código QR"
         );
         return;
       }
 
-      const ticket = await databaseService.getTicketByQRId(cleanedUUID);
+      const { data: ticket, error } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('qr_id', cleanedUUID)
+        .single();
+
+      console.log("Ticket encontrado:", ticket ? "SI" : "NO");
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          await playSound('error');
+          showErrorModal(
+            "Ticket no válido o no existe", 
+            "Ticket no válido o no existe"
+          );
+          return;
+        }
+
+        const message = String(error.message || '');
+        if (message.toLowerCase().includes('network')) {
+          await playSound('error');
+          showErrorModal(
+            "Sin conexión a la base de datos", 
+            "Sin conexión a la base de datos"
+          );
+          return;
+        }
+
+        console.error("Error buscando ticket:", error);
+        await playSound('error');
+        showErrorModal(
+          "Error al validar ticket", 
+          "Error al validar ticket"
+        );
+        return;
+      }
 
       if (!ticket) {
         await playSound('error');
         showErrorModal(
-          "Ticket No Encontrado", 
-          `No se encontró un ticket con el código:\n\n${cleanedUUID.substring(0, 8)}...`
+          "Ticket no válido o no existe", 
+          "Ticket no válido o no existe"
         );
         return;
       }
+
+      // 🔥 FILTRO POR EVENTO: Validar que el ticket pertenece a este evento
+      if (eventKey && !ticket.sku.startsWith(eventKey)) {
+        let eventName = 'otro evento';
+        try {
+          const { data: eventData, error: eventError } = await supabase
+            .from('events')
+            .select('name')
+            .eq('sku', ticket.sku.split('-').slice(0, 3).join('-'))
+            .single();
+
+          if (!eventError && eventData?.name) {
+            eventName = eventData.name;
+          }
+        } catch (err) {
+          console.error('Error fetching event name:', err);
+        }
+
+        await playSound('error');
+        showErrorModal(
+          "Evento incorrecto",
+          eventName === 'otro evento'
+            ? "Este ticket pertenece a otro evento"
+            : `Este ticket pertenece a: ${eventName}`
+        );
+        return;
+      }
+
+      const formattedTicketData = {
+        'QR ID': ticket.qr_id,
+        'Nombre': `${ticket.first_name || ''} ${ticket.last_name || ''}`.trim() || 'N/A',
+        'RUT': ticket.rut || 'N/A',
+        'Email': ticket.email || 'N/A',
+        'Teléfono': ticket.phone || 'N/A',
+        'Número de orden': ticket.order_id || 'N/A',
+        'Tipo de entrada': ticket.sku || 'N/A',
+        'Cantidad comprada en la orden': ticket.quantity ?? 'N/A',
+        'Fecha de compra': ticket.created_at ? new Date(ticket.created_at).toLocaleString('es-ES') : 'N/A',
+      };
 
       if (ticket.validated) {
         await playSound('warning');
         showModal(
           "Ticket Ya Validado",
-          ticket,
+          formattedTicketData,
           true,
           ticket.validated_at
         );
@@ -257,7 +358,7 @@ export default function ScannerScreen() {
       
       showModal(
         "✓ Ticket Validado",
-        ticket,
+        formattedTicketData,
         false
       );
       

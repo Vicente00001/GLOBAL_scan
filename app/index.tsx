@@ -3,7 +3,8 @@ import { Link, Stack, useRouter } from "expo-router";
 import { useCameraPermissions } from "expo-camera";
 import { useState, useEffect } from "react";
 import { authService } from "@/src/config/authService";
-import { databaseService } from "@/src/config/databaseService";
+import { useEvent } from "@/src/context/EventContext";
+import { supabase } from "@/src/config/supabase";
 
 export default function Home() {
   const router = useRouter();
@@ -13,6 +14,9 @@ export default function Home() {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userName, setUserName] = useState("");
+  const [eventName, setEventName] = useState("Evento");
+  const [eventNameLoading, setEventNameLoading] = useState(true);
+  const { eventKey } = useEvent();
 
   useEffect(() => {
     const requestCameraPermission = async () => {
@@ -45,12 +49,25 @@ export default function Home() {
 
     const checkConnection = async () => {
       try {
-        // Verificar conexión a Supabase intentando obtener tickets
-        const tickets = await databaseService.getAllTickets();
+        const { count, error } = await supabase
+          .from('tickets')
+          .select('*', { count: 'exact', head: true });
+
+        if (error) {
+          console.error('Error conexión:', error);
+          setIsConnected(false);
+          setIsLoading(false);
+          clearTimeout(timeout);
+          return;
+        }
+
+        console.log('Datos cargados correctamente');
+        console.log('Total registros:', count);
         setIsConnected(true);
         setIsLoading(false);
         clearTimeout(timeout);
       } catch (error) {
+        console.error('Error conexión:', error);
         setIsConnected(false);
         setIsLoading(false);
         clearTimeout(timeout);
@@ -78,6 +95,39 @@ export default function Home() {
 
     fetchUserData();
   }, []);
+
+  useEffect(() => {
+    const loadEventName = async () => {
+      if (!eventKey) {
+        setEventName("Evento");
+        setEventNameLoading(false);
+        return;
+      }
+
+      setEventNameLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('name')
+          .eq('sku', eventKey)
+          .single();
+
+        if (error) {
+          console.error('Error fetching event name:', error);
+          setEventName('Evento');
+        } else {
+          setEventName(data?.name || 'Evento');
+        }
+      } catch (err) {
+        console.error('Error fetching event name:', err);
+        setEventName('Evento');
+      } finally {
+        setEventNameLoading(false);
+      }
+    };
+
+    loadEventName();
+  }, [eventKey]);
 
   const handleLogout = async () => {
     try {
@@ -115,9 +165,10 @@ export default function Home() {
           <Text style={styles.logoutText}>Cerrar Sesión</Text>
         </Pressable>
         <Image source={require('@/assets/images/LOGOGM2.png')} style={styles.logo} />
-        
+        <Text style={styles.eventNameText}>
+          {eventNameLoading ? 'Cargando evento...' : eventName}
+        </Text>
 
-        
         <Text style={styles.dateText}>{formatDate(currentTime)}</Text>
         <Text style={styles.clock}>{currentTime.toLocaleTimeString()}</Text>
 
@@ -180,6 +231,14 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
     marginTop: 5,
+  },
+  eventNameText: {
+    color: "#ffffff",
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 10,
+    marginBottom: 10,
   },
   clock: {
     color: "#b3b2b1",

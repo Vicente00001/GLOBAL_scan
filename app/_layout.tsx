@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Text, View, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authService } from "@/src/config/authService";
+import { EventProvider } from "@/src/context/EventContext";
 
 export default function Layout() {
   const router = useRouter();
@@ -70,10 +71,12 @@ export default function Layout() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-      }}
-    />
+    <EventProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      />
+    </EventProvider>
   );
 }

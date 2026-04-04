@@ -17,6 +17,8 @@ import {
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authService } from "@/src/config/authService";
+import { databaseService } from "@/src/config/databaseService";
+import { useEvent } from "@/src/context/EventContext";
 
 // Obtener dimensiones de la pantalla para responsividad
 const { width, height } = Dimensions.get("window");
@@ -33,6 +35,8 @@ const scale = (size: number): number => {
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { setEventKey } = useEvent();
+  const [eventKeyInput, setEventKeyInput] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -50,7 +54,7 @@ export default function LoginScreen() {
   }, []);
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    if (!eventKeyInput || !email || !password) {
       setError("Por favor completa todos los campos");
       return;
     }
@@ -59,11 +63,22 @@ export default function LoginScreen() {
       setLoading(true);
       setError("");
       
+      // 1. Validar que el eventKey existe en la tabla events
+      const event = await databaseService.validateEventKey(eventKeyInput);
+      if (!event) {
+        setError("Evento no válido");
+        setLoading(false);
+        return;
+      }
+
+      // 2. Hacer login con Supabase Auth
       await authService.login(email, password);
 
-      // 🔥 GUARDAMOS TOKEN DE SESIÓN (clave para el guard)
-      await AsyncStorage.setItem("userToken", "authenticated");
+      // 3. Guardar eventKey globalmente
+      await setEventKey(eventKeyInput);
 
+      // 4. Guardar token de sesión
+      await AsyncStorage.setItem("userToken", "authenticated");
       await AsyncStorage.setItem("lastEmail", email);
 
       router.replace("/");
@@ -73,7 +88,7 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  };;
 
   const toggleShowPassword = () => {
     setShowPassword(!showPassword);
@@ -108,6 +123,19 @@ export default function LoginScreen() {
             <Text style={styles.title}>Iniciar sesión</Text>
             
             {error ? <Text style={styles.error}>{error}</Text> : null}
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Código del Evento (ej: CAL-20260327-N)"
+              placeholderTextColor="#CCCCCC"
+              value={eventKeyInput}
+              onChangeText={setEventKeyInput}
+              editable={!loading}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              returnKeyType="next"
+              blurOnSubmit={false}
+            />
             
             <TextInput
               style={styles.input}

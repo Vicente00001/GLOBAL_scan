@@ -155,4 +155,24 @@ export const databaseService = {
     };
   }
 },
+
+  // Validar si un eventKey existe en la tabla events
+  async validateEventKey(sku: string) {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .eq('sku', sku)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // Registro no encontrado
+        return null;
+      }
+      console.error('Error validando evento:', error);
+      return null;
+    }
+
+    return data;
+  },
 };
