@@ -1,65 +1,72 @@
 {
   "expo": {
-    "name": "SCANNER GLOBAL MUSIC",
-    "slug": "GLOBAL SCAN",
+    "name": "GLOBAL SCAN",
+    "slug": "global-scan",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logogmscan.png",
-    "scheme": "myapp",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.wa2goose.ExpoQR2",
+      "bundleIdentifier": "com.gm.scanner",
       "infoPlist": {
+        "NSCameraUsageDescription": "Esta app necesita acceso a la cámara para escanear tickets QR",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logogmscan.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.VIBRATE"
       ],
-      "package": "com.wa2goose.ExpoQR2"
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "package": "com.gm.scanner"
     },
     "plugins": [
       "expo-router",
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
-          "recordAudioAndroid": true
+          "cameraPermission": "Necesita acceso a la cámara para escanear tickets",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
-      "expo-font"
+      [
+        "expo-av",
+        {
+          "microphonePermission": false
+        }
+      ]
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "extra": {
       "router": {
         "origin": false
       },
       "eas": {
-        "projectId": "40414f38-7329-4288-9509-f6cbb758d091"
+        "projectId": "f9d634bc-7ca4-4b3e-abe3-cd5c9c53eeef"
       },
       "supabaseUrl": "https://jthkrexyketbecgmxstk.supabase.co",
       "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0aGtyZXh5a2V0YmVjZ214c3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4MzEwMzMsImV4cCI6MjA4MTQwNzAzM30.vdv_R125JXPi_8aj-SlD7M5U2aiozw8DQJ2BjNAXnPA"
     },
-    "owner": "chipamogli"
+    "owner": "chipamogli",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f9d634bc-7ca4-4b3e-abe3-cd5c9c53eeef"
+
+    }
   }
 }

@@ -60,8 +60,14 @@ export default function LoginScreen() {
       setError("");
       
       await authService.login(email, password);
+
+      // 🔥 GUARDAMOS TOKEN DE SESIÓN (clave para el guard)
+      await AsyncStorage.setItem("userToken", "authenticated");
+
       await AsyncStorage.setItem("lastEmail", email);
+
       router.replace("/");
+
     } catch (err) {
       setError("Correo o contraseña incorrectos");
     } finally {
@@ -73,7 +79,6 @@ export default function LoginScreen() {
     setShowPassword(!showPassword);
   };
 
-  // Función para cerrar el teclado al tocar fuera
   const dismissKeyboard = () => {
     Keyboard.dismiss();
   };
@@ -91,24 +96,19 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.content}>
-            {/* Logo */}
             <Image 
               source={require("@/assets/images/planetagm.png")} 
               style={styles.logo} 
             />
             
-            {/* Título de la app */}
             <Text style={styles.appTitle}>
               Escáner de Tickets{"\n"}Global Music Producciones
             </Text>
             
-            {/* Título del formulario */}
             <Text style={styles.title}>Iniciar sesión</Text>
             
-            {/* Mensaje de error */}
             {error ? <Text style={styles.error}>{error}</Text> : null}
             
-            {/* Campo de email */}
             <TextInput
               style={styles.input}
               placeholder="Correo electrónico"
@@ -121,16 +121,8 @@ export default function LoginScreen() {
               autoCorrect={false}
               returnKeyType="next"
               blurOnSubmit={false}
-              onSubmitEditing={() => {
-                // Esto hace que al presionar "siguiente" se vaya al campo de contraseña
-                const passwordInput = document.querySelector('input[placeholder="Contraseña"]');
-                if (passwordInput) {
-                  (passwordInput as any).focus();
-                }
-              }}
             />
             
-            {/* Campo de contraseña con ojito */}
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
@@ -156,7 +148,6 @@ export default function LoginScreen() {
               </Pressable>
             </View>
             
-            {/* Botón de inicio de sesión */}
             <Pressable 
               style={[styles.button, loading && styles.buttonDisabled]} 
               onPress={handleLogin}
@@ -169,7 +160,6 @@ export default function LoginScreen() {
               )}
             </Pressable>
             
-            {/* Espacio adicional para evitar que el teclado tape el botón */}
             {Platform.OS === "android" && <View style={styles.spacer} />}
           </View>
         </ScrollView>
@@ -255,7 +245,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(8),
     fontSize: scale(isSmallScreen ? 14 : 16),
     minHeight: scale(50),
-    paddingRight: scale(50), // Espacio para el ojito
+    paddingRight: scale(50),
   },
   eyeButton: {
     position: "absolute",
@@ -278,10 +268,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: scale(50),
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,

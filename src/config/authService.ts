@@ -36,6 +36,13 @@ export const authService = {
     if (error) {
       throw new Error(error.message);
     }
+
+    // ⚠️ CRUCIAL: Borrar el token de AsyncStorage para que el guard rediriga a login
+    try {
+      await require("@react-native-async-storage/async-storage").default.removeItem("userToken");
+    } catch (e) {
+      console.error("Error borrando token:", e);
+    }
   },
 
   // Obtener el usuario actual

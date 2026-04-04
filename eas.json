@@ -1,17 +1,24 @@
 {
-    "build": {
-      "preview": {
-        "android": {
-          "buildType": "apk"
-        },
-        "distribution": "internal"
-      },
-      "production": {
-        "android": {
-          "buildType": "app-bundle"
-        },
-        "distribution": "store"
+  "cli": {
+    "version": ">= 8.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "android": {
+        "buildType": "apk",
+        "image": "latest",
+        "autoIncrement": true
+      }
+    },
+    "production": {
+      "channel": "production",
+      "android": {
+        "buildType": "apk",
+        "autoIncrement": true
       }
     }
   }
-  
+}
